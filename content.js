@@ -1,5 +1,6 @@
 window.DASH_CONTENT = {
   title: 'Product review: funnel health',
+  commentaryAsOf: '19 Sep 2026',
   subtitle: 'How every purchase funnel has moved month by month since May 2026.',
   working: [
     'Logged-in visitors convert better than a month ago on four funnels: Group Web (6.1% to 6.9%) and iOS (6.7% to 8.8%), and 1:1 Web (5.8% to 7.5%) and iOS (5.1% to 6.9%). Each gain is statistically real.',

@@ -223,6 +223,7 @@
   }
   document.getElementById('title').textContent = C.title;
   document.getElementById('subtitle').textContent = C.subtitle;
+document.getElementById('commentary-note').textContent = 'The written commentary (the three boxes and the takeaway on each card) was written on ' + C.commentaryAsOf + ' and does not update by itself. The numbers, charts and table refresh every week.';
   document.getElementById('asof').textContent = 'Data through ' + dateNice(D.through) + ' 2026 · ' + partialNote;
   fill('c-working', C.working); fill('c-not', C.notWorking); fill('c-watch', C.watch); fill('notes-list', C.notes);
 

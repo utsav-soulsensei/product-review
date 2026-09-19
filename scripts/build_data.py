@@ -72,10 +72,13 @@ def fetch(pid, tok, bid, tries=4):
         time.sleep(10 * (i + 1))
     raise RuntimeError(f'could not fetch bookmark {bid}')
 
-def main():
-    pid, tok = os.environ['MIXPANEL_PROJECT_ID'], os.environ['MIXPANEL_SA_SECRET']
-    raws = {rid: fetch(pid, tok, bid) for rid, _, _, _, bid in REPORTS}
+def fetch_all(pid, tok):
+    return {rid: fetch(pid, tok, bid) for rid, _, _, _, bid in REPORTS}
 
+def render_js(data):
+    return 'window.DASH_DATA = ' + json.dumps(data, separators=(',', ':')) + ';\n'
+
+def build(raws):
     latest = max(parse(k) for j in raws.values() for m in j['series'].values() for k in m if k != OV)
     end = latest - dt.timedelta(days=1)            # drop the current, partial day
     l28 = (end - dt.timedelta(days=27), end)
@@ -143,10 +146,15 @@ def main():
     fmt = lambda d: d.isoformat()
     data = {'generated': dt.date.today().isoformat(), 'through': fmt(end), 'months': months,
             'l28': [fmt(l28[0]), fmt(l28[1])], 'p28': [fmt(p28[0]), fmt(p28[1])], 'funnels': funnels}
+    return data
+
+def main():
+    pid, tok = os.environ['MIXPANEL_PROJECT_ID'], os.environ['MIXPANEL_SA_SECRET']
+    data = build(fetch_all(pid, tok))
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     with open(os.path.join(root, 'data.js'), 'w') as f:
-        f.write('window.DASH_DATA = ' + json.dumps(data, separators=(',', ':')) + ';\n')
-    print('wrote data.js:', len(funnels), 'funnels, months', months, 'through', end)
+        f.write(render_js(data))
+    print('wrote data.js:', len(data['funnels']), 'funnels, months', data['months'], 'through', data['through'])
 
 if __name__ == '__main__':
     main()
