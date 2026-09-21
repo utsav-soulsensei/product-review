@@ -136,3 +136,12 @@ svg text.lab { fill: var(--ink); font-weight: 600; }
 .chip .ico { flex-shrink: 0; margin-top: 1px; }
 .chip.lean-up .ico, .chip.lean-down .ico, .chip.few .ico { background: var(--axis); color: var(--ink); }
 .step-d { min-height: 40px; }
+
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); margin-left: 12px; cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--series); cursor: pointer; }
+svg .rel, .rel-only { display: none; }
+body.show-rel svg .rel { display: inline; }
+body.show-rel .rel-only { display: revert; }
+body.show-rel details.rel-only { display: block; }
+.l-rel { fill: var(--ink-2); stroke: var(--surface); stroke-width: 2; }
+@media (max-width: 860px) { .filters { flex-wrap: wrap; } .toggle { margin-left: 0; } }

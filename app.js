@@ -179,6 +179,26 @@
         showTip(e, tip.title, tip.value, tip.sub, true);
       });
       hit.addEventListener('pointerleave', function () { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+      if (o.marks && !mini) {
+        var g = sv('g', { class: 'rel' }, svg), band = iw / n, clusters = [];
+        o.marks.slice().sort(function (p, q) { return (p.mi + p.frac) - (q.mi + q.frac); }).forEach(function (mk) {
+          var x = m.l + (mk.mi + mk.frac) * band, last = clusters[clusters.length - 1];
+          if (last && x - last.x < 12) last.items.push(mk); else clusters.push({ x: x, items: [mk] });
+        });
+        clusters.forEach(function (cl) {
+          var y = m.t + ih;
+          sv('path', { d: 'M' + cl.x + ',' + (y - 5) + ' L' + (cl.x + 4) + ',' + y + ' L' + cl.x + ',' + (y + 5) + ' L' + (cl.x - 4) + ',' + y + ' Z', class: 'l-rel' }, g);
+          var target = sv('circle', { cx: cl.x, cy: y, r: 11, fill: 'transparent' }, g);
+          target.addEventListener('pointermove', function (e) {
+            var it = cl.items, first = it[0];
+            var title = it.length > 1 ? 'Web releases' : 'Web release \u00B7 ' + first.dateText;
+            var value = it.length > 1 ? it.length + ' releases' : 'PR #' + first.pr + ' \u00B7 ' + first.page;
+            var sub = it.length > 1 ? it.map(function (r) { return r.dateText + ' \u2013 ' + r.what; }) : [first.what];
+            showTip(e, title, value, sub, false);
+          });
+          target.addEventListener('pointerleave', hideTip);
+        });
+      }
       host.appendChild(svg);
     };
     watch(host, draw);
@@ -227,6 +247,21 @@
   function watch(host, draw) {
     host._draw = draw;
     if (ro) ro.observe(host); else { draw(); window.addEventListener('resize', draw); }
+  }
+
+  // ---------- web releases (hidden until the toggle is switched on) ----------
+  var REL = (window.DASH_RELEASES || []);
+  function releasesFor(f) {
+    if (f.platform !== 'Web') return [];
+    return REL.filter(function (r) { return f.product === 'group' || r.page !== 'Course'; });
+  }
+  function relMarks(f) {
+    return releasesFor(f).map(function (r) {
+      var ym = r.date.slice(0, 7), mi = D.months.indexOf(ym);
+      if (mi < 0) return null;
+      var day = parseInt(r.date.slice(8, 10), 10), dim = new Date(parseInt(r.date.slice(0, 4), 10), parseInt(r.date.slice(5, 7), 10), 0).getDate();
+      return { mi: mi, frac: (day - 0.5) / dim, pr: r.pr, page: r.page, what: r.what, dateText: dateNice(r.date) };
+    }).filter(Boolean);
   }
 
   // ---------- content ----------
@@ -298,11 +333,11 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     ]));
     var h1 = el('div', { class: 'host' }), h2 = el('div', { class: 'host' });
     card.appendChild(el('div', { class: 'charts' }, [
-      el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s', text: 'Share of people who entered and then purchased, in one visit' }), h1]),
+      el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s' }, [document.createTextNode('Share of people who entered and then purchased, in one visit'), el('span', { class: 'rel-only', text: ' \u00B7 \u25C6 = a web release (hover for details)' })]), h1]),
       el('div', null, [el('p', { class: 'chart-t', text: 'People entering the funnel' }), el('p', { class: 'chart-s', text: 'Per month (' + lastMonthName + ' is part-month)' }), h2])
     ]));
     lineChart(h1, {
-      vals: ov.months.map(ratio), labels: labels, height: 210, partialLast: true,
+      vals: ov.months.map(ratio), labels: labels, height: 210, partialLast: true, marks: relMarks(f),
       aria: 'Overall conversion by month for ' + segName(f),
       tips: ov.months.map(function (p, i) {
         return { title: labels[i] + (i === labels.length - 1 ? ' (' + partialText + ')' : ''), value: pct(ratio(p)), sub: [commas(p[0]) + ' purchases of ' + commas(p[1]) + ' entrants'] };
@@ -351,6 +386,18 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     tbl.appendChild(tb);
     det.appendChild(el('div', { class: 'tbl' }, [tbl]));
     card.appendChild(det);
+    var rl = releasesFor(f);
+    if (rl.length) {
+      var rdet = el('details', { class: 'rel-only' }, [el('summary', { text: 'Web releases on the course page and cart (' + rl.length + ')' })]);
+      var rt = el('table'), rb = el('tbody');
+      rt.appendChild(el('thead', null, [el('tr', null, ['Date', 'Page', 'What shipped'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+      rl.forEach(function (r) {
+        rb.appendChild(el('tr', null, [el('td', { text: dateNice(r.date) }), el('td', { text: r.page }), el('td', { text: r.what + ' (PR #' + r.pr + ')' })]));
+      });
+      rt.appendChild(rb);
+      rdet.appendChild(el('div', { class: 'tbl' }, [rt]));
+      card.appendChild(rdet);
+    }
     return card;
   }
   var cardMap = [];
@@ -372,6 +419,10 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     });
     pills.appendChild(b);
   });
+
+  // release markers toggle (off by default)
+  var relBox = document.getElementById('show-rel');
+  relBox.addEventListener('change', function () { document.body.classList.toggle('show-rel', relBox.checked); });
 
   // theme
   var root = document.documentElement;
