@@ -216,7 +216,9 @@
 
   // ---------- content ----------
   var labels = D.months.map(monthLabel);
-  var partialNote = 'Sep* covers 1–18 Sep';
+  var lastMonthName = MN[D.months[D.months.length - 1].slice(5)];
+  var partialText = '1–' + dateNice(D.through);
+  var partialNote = lastMonthName + '* covers ' + partialText;
   function fill(id, arr) {
     var ul = document.getElementById(id);
     arr.forEach(function (t) { ul.appendChild(el('li', { text: t })); });
@@ -224,7 +226,7 @@
   document.getElementById('title').textContent = C.title;
   document.getElementById('subtitle').textContent = C.subtitle;
 document.getElementById('commentary-note').textContent = 'The written commentary (the three boxes and the takeaway on each card) was written on ' + C.commentaryAsOf + ' and does not update by itself. The numbers, charts and table refresh every week.';
-  document.getElementById('asof').textContent = 'Data through ' + dateNice(D.through) + ' 2026 · ' + partialNote;
+  document.getElementById('asof').textContent = 'Data through ' + dateNice(D.through) + ' ' + D.through.slice(0, 4) + ' · ' + partialNote;
   fill('c-working', C.working); fill('c-not', C.notWorking); fill('c-watch', C.watch); fill('notes-list', C.notes);
 
   function overall(f) { return f.steps[f.steps.length - 1]; }
@@ -278,19 +280,19 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     var h1 = el('div', { class: 'host' }), h2 = el('div', { class: 'host' });
     card.appendChild(el('div', { class: 'charts' }, [
       el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s', text: 'Share of people who entered and then purchased, in one visit' }), h1]),
-      el('div', null, [el('p', { class: 'chart-t', text: 'People entering the funnel' }), el('p', { class: 'chart-s', text: 'Per month (September is part-month)' }), h2])
+      el('div', null, [el('p', { class: 'chart-t', text: 'People entering the funnel' }), el('p', { class: 'chart-s', text: 'Per month (' + lastMonthName + ' is part-month)' }), h2])
     ]));
     lineChart(h1, {
       vals: ov.months.map(ratio), labels: labels, height: 210, partialLast: true,
       aria: 'Overall conversion by month for ' + segName(f),
       tips: ov.months.map(function (p, i) {
-        return { title: labels[i] + (i === labels.length - 1 ? ' (1–18 Sep)' : ''), value: pct(ratio(p)), sub: [commas(p[0]) + ' purchases of ' + commas(p[1]) + ' entrants'] };
+        return { title: labels[i] + (i === labels.length - 1 ? ' (' + partialText + ')' : ''), value: pct(ratio(p)), sub: [commas(p[0]) + ' purchases of ' + commas(p[1]) + ' entrants'] };
       })
     });
     barChart(h2, {
       vals: f.entrants.months, labels: labels, height: 210, partialLast: true,
       aria: 'People entering the funnel by month for ' + segName(f),
-      tipTitles: labels.map(function (l, i) { return l + (i === labels.length - 1 ? ' (1–18 Sep)' : ''); }),
+      tipTitles: labels.map(function (l, i) { return l + (i === labels.length - 1 ? ' (' + partialText + ')' : ''); }),
       tipSub: f.entrants.months.map(function () { return []; })
     });
     card.appendChild(el('h4', { text: 'Step by step, month by month' }));
