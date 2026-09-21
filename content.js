@@ -10,7 +10,7 @@ window.DASH_CONTENT = {
   notWorking: [
     'Group Web logged-out visitors, the biggest audience, are still well below July: 0.75% in July, 0.53% in August, 0.58% so far in September. Register clicks have recovered, but fewer people reach the cart after clicking (94.5% to 92.5%) and fewer start login from the cart (33.7% to 31.5%).',
     'Cart to checkout is the weakest step on every logged-in funnel (45% to 66% in September). Roughly a third to a half of people with something in the cart never proceed.',
-    'On the web login screen, many people never ask for an OTP: 52% do on Group Web, and on 1:1 Web it has fallen every month, from 53% in May to 32% in September (35% to 32% this month alone).'
+    'On the web login screen, most people never ask for an OTP: 52% do on Group Web, and only about 31% on 1:1 Web in September (down from 35% in August, a small but real drop).'
   ],
   watch: [
     'Group Android logged-in: the cart page is reached more often (86.0% to 91.2%) but fewer go on to checkout (50.8% to 48.1%, not yet significant), so overall conversion is flat (6.4% to 6.1%).',
@@ -25,7 +25,7 @@ window.DASH_CONTENT = {
     'group-android-loggedin': 'Flat: 6.4% in August, 6.1% in September (7.0% in June). The cart page is reached more often (86.0% to 91.2%), but fewer go on to checkout (50.8% to 48.1%), which cancels the gain. The weak May checkout-to-purchase rate (63.5%) looks like a one-off.',
     'group-ios-guest': 'Rising almost every month, from 1.5% in May to 5.7% in September, but the audience is small and shrinking, so single months are noisy. The May login-to-checkout figure (46.7%) looks like a tracking artifact.',
     'group-android-guest': 'Between 2.7% and 4.5% since June. Login success from the cart has slid every month (42% in July, 30% in August, 22% in September), so it is worth watching. May looks like a tracking anomaly.',
-    'oneone-web-guest': 'Register-style clicks recovered (2.9% in July, 5.0% in August, 5.4% in September), but Login to OTP has fallen every month (53% in May to 32% in September, and 35% to 32% this month) while overall conversion held. That is consistent with a change to the web login flow, though it has not been verified.',
+    'oneone-web-guest': 'Confirm slot clicks recovered (2.9% in July, 5.0% in August, 5.4% in September) and overall conversion is steady at about 0.7%. On the login screen only about a third of people ask for an OTP: 31% in September, down from 35% in August (a small but real drop), and between 31% and 40% every month since May.',
     'oneone-web-loggedin': 'Up from 5.9% to 8.3% because more logged-in visitors confirm a slot (14.9% to 17.5%) and more go on to checkout (56.7% to 62.7%, not yet significant). Cart to checkout, at about 63%, is the weakest step.',
     'oneone-ios-loggedin': 'Up from 5.0% in August to 7.2%, driven by more people confirming a slot (15.2% to 17.8%) and better cart-to-checkout (45.1% to 53.5%). Checkout to purchase is 76.7%, up from 73.5%.',
     'oneone-android-loggedin': 'Recovering from a weak May (2.5%): 4.5% in August, 5.8% in September (not yet significant). Checkout to purchase rose from 43.5% in May to 77.0% in September. Cart to checkout, at about 45%, is still the weakest step.',
