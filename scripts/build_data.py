@@ -23,7 +23,20 @@ REPORTS = [
     ('B Android LI',  'oneone', 'Android', 'loggedin', '92887037'),
     ('B iOS LO',      'oneone', 'iOS',     'guest',    '92887348'),
     ('B Android LO',  'oneone', 'Android', 'guest',    '92887058'),
+    ('Tarot LP',      'tarot',  'All',     'all',      '92917365'),
 ]
+
+# Reports whose steps are not a simple PV -> ... chain. For the Tarot listing report the overall metric is
+# 'Absolute CR': its primary series is a COUNT and its secondary series is the rate (the reverse of the others).
+# Step D starts from the people who made a leader query (step C's converted count).
+CUSTOM = {
+    'Tarot LP': {
+        'entry': 'A. Listing PV',
+        'steps': ['B. LP to Card Click', 'C. LP to LUQ', 'D. LUQ to RS', 'F. Absolute CR'],
+        'swap': {'F. Absolute CR'},
+        'den_from': {'D. LUQ to RS': 'C. LP to LUQ'},
+    },
+}
 
 def rc(product):
     return 'Register click' if product == 'group' else 'Confirm slot click'
@@ -32,6 +45,11 @@ def label(product, name):
     n = re.sub(r'^[A-Z]\. ', '', name)
     n = re.sub(r'\s*\((Guest|Logged in|Logged In)\)', '', n).strip()
     r = rc(product)
+    if product == 'tarot':
+        tarot = {'LP to Card Click': 'Listing page → Card click', 'LP to LUQ': 'Listing page → Leader query',
+                 'LUQ to RS': 'Leader query → Purchase', 'Absolute CR': 'Overall: listing page → purchase'}
+        if n in tarot:
+            return tarot[n]
     table = [
         (r'^PV to RS$|^Overall', 'Overall: page view → purchase'),
         (r'^PV to RC$', f'Page view → {r}'),
@@ -108,12 +126,16 @@ def build(raws):
     for rid, product, platform, seg_default, _ in REPORTS:
         prim, sec = raws[rid]['series'], raws[rid]['secondary']['series']
         chains, cur = [], None
-        for m in sorted(prim):
-            nm = re.sub(r'^[A-Z]\. ', '', m)
-            if nm.startswith('PV') and ' to ' not in nm:
-                cur = {'entry': m, 'steps': []}; chains.append(cur)
-            else:
-                cur['steps'].append(m)
+        cfg = CUSTOM.get(rid)
+        if cfg:
+            chains = [{'entry': cfg['entry'], 'steps': cfg['steps']}]
+        else:
+            for m in sorted(prim):
+                nm = re.sub(r'^[A-Z]\. ', '', m)
+                if nm.startswith('PV') and ' to ' not in nm:
+                    cur = {'entry': m, 'steps': []}; chains.append(cur)
+                else:
+                    cur['steps'].append(m)
         for ch in chains:
             steps, n = ch['steps'], len(ch['steps'])
             seg = seg_default
@@ -125,12 +147,19 @@ def build(raws):
                 if k == OV: continue
                 d = parse(k)
                 if d > end: continue
-                nums = [(sec[s].get(k, {}).get('all') or 0) for s in steps]
-                rates = [(prim[s].get(k, {}).get('all') or 0) for s in steps]
+                swap = cfg['swap'] if cfg else set()
+                nums = [((prim if s in swap else sec)[s].get(k, {}).get('all') or 0) for s in steps]
+                rates = [((sec if s in swap else prim)[s].get(k, {}).get('all') or 0) for s in steps]
                 dens = [round(nums[i] / rates[i]) if nums[i] > 0 and rates[i] > 0 else None for i in range(n)]
-                den1 = dens[0] if dens[0] is not None else (dens[-1] or 0)
+                if cfg:
+                    den1 = dens[0] if dens[0] is not None else (prim[ch['entry']].get(k, {}).get('all') or 0)
+                else:
+                    den1 = dens[0] if dens[0] is not None else (dens[-1] or 0)
                 for i, s in enumerate(steps):
-                    if i in (0, n - 1): dd = den1
+                    if cfg:
+                        src = cfg['den_from'].get(s)
+                        dd = dens[i] if dens[i] is not None else (nums[steps.index(src)] if src else den1)
+                    elif i in (0, n - 1): dd = den1
                     else: dd = dens[i] if dens[i] is not None else nums[i - 1]
                     for b in buckets(d):
                         agg[s][b][0] += nums[i]; agg[s][b][1] += dd

@@ -83,7 +83,7 @@
     var n = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
     return n * e;
   }
-  function segName(f) { return f.platform + ' · ' + (f.segment === 'guest' ? 'Logged-out visitors' : 'Logged-in visitors'); }
+  function segName(f) { if (f.product === 'tarot') return 'Tarot listing pages'; return f.platform + ' · ' + (f.segment === 'guest' ? 'Logged-out visitors' : 'Logged-in visitors'); }
 
   // ---------- tooltip ----------
   var tt = document.getElementById('tt');
@@ -237,7 +237,7 @@
         var hit = sv('rect', { x: m.l + i * band, y: 0, width: band, height: H, fill: 'transparent' }, svg);
         hit.addEventListener('pointermove', function (e) {
           bar.classList.add('hover');
-          showTip(e, o.tipTitles[i], commas(v) + ' people', o.tipSub[i], false);
+          showTip(e, o.tipTitles[i], commas(v) + (o.unit === 'buyers' ? ' bought' : ' people'), o.tipSub[i], false);
         });
         hit.addEventListener('pointerleave', function () { bar.classList.remove('hover'); hideTip(); });
       });
@@ -272,6 +272,10 @@
   }
 
   // ---------- content ----------
+  D.funnels.forEach(function (f) {
+    f.entrants.months.forEach(function (n, i) { if (n < 50) f.steps.forEach(function (s) { s.months[i] = [0, 0]; }); });
+    f.entrants.weeks.forEach(function (n, i) { if (n < 50) f.steps.forEach(function (s) { s.weeks[i] = [0, 0]; }); });
+  });
   var labels = D.months.map(monthLabel);
   var lastMonthName = MN[D.months[D.months.length - 1].slice(5)];
   var partialText = '1–' + dateNice(D.through);
@@ -294,14 +298,14 @@ document.getElementById('commentary-note').textContent = 'The written commentary
 
   // scoreboard
   var tbody = document.querySelector('#scoreboard tbody');
-  var order = { group: [], oneone: [] };
+  var order = { group: [], oneone: [], tarot: [] };
   D.funnels.forEach(function (f) { order[f.product].push(f); });
-  var platRank = { Web: 0, iOS: 1, Android: 2 };
+  var platRank = { Web: 0, iOS: 1, Android: 2, All: 3 };
   Object.keys(order).forEach(function (k) {
     order[k].sort(function (a, b) { return platRank[a.platform] - platRank[b.platform] || (a.segment === 'loggedin' ? -1 : 1); });
   });
   var rows = [];
-  [['group', 'Group purchase'], ['oneone', '1:1 booking']].forEach(function (pair) {
+  [['group', 'Group purchase'], ['oneone', '1:1 booking'], ['tarot', 'Tarot listing pages']].forEach(function (pair) {
     var gr = el('tr', { class: 'group' }, [el('td', { colspan: '5', text: pair[1] })]);
     tbody.appendChild(gr); rows.push({ tr: gr, plat: null });
     order[pair[0]].forEach(function (f) {
@@ -338,10 +342,12 @@ document.getElementById('commentary-note').textContent = 'The written commentary
       el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'vs ' + pct(och.p) + ' in ' + prevName }), el('div', { class: 'v sm' }, [chip(och)])]),
       el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'People entering, ' + curText }), el('div', { class: 'v sm', text: commas(f.entrants.months[curI]) })])
     ]));
+    var isTarot = f.product === 'tarot';
+    var rightVals = isTarot ? ov.months.map(function (p) { return p[0]; }) : f.entrants.months;
     var h1 = el('div', { class: 'host' }), h2 = el('div', { class: 'host' });
     card.appendChild(el('div', { class: 'charts' }, [
-      el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s', text: 'Share of people who entered and then purchased, in one visit' }), h1]),
-      el('div', null, [el('p', { class: 'chart-t', text: 'People entering the funnel' }), el('p', { class: 'chart-s', text: 'Per month (' + lastMonthName + ' is part-month)' }), h2])
+      el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s', text: isTarot ? 'Share of listing page visitors who went on to buy (Absolute CR)' : 'Share of people who entered and then purchased, in one visit' }), h1]),
+      el('div', null, [el('p', { class: 'chart-t', text: isTarot ? 'People who bought' : 'People entering the funnel' }), el('p', { class: 'chart-s', text: 'Per month (' + lastMonthName + ' is part-month)' }), h2])
     ]));
     lineChart(h1, {
       vals: ov.months.map(ratio), labels: labels, height: 210, partialLast: true,
@@ -351,10 +357,10 @@ document.getElementById('commentary-note').textContent = 'The written commentary
       })
     });
     barChart(h2, {
-      vals: f.entrants.months, labels: labels, height: 210, partialLast: true,
-      aria: 'People entering the funnel by month for ' + segName(f),
+      vals: rightVals, labels: labels, height: 210, partialLast: true, unit: isTarot ? 'buyers' : 'people',
+      aria: (isTarot ? 'People who bought by month for ' : 'People entering the funnel by month for ') + segName(f),
       tipTitles: labels.map(function (l, i) { return l + (i === labels.length - 1 ? ' (' + partialText + ')' : ''); }),
-      tipSub: f.entrants.months.map(function () { return []; })
+      tipSub: rightVals.map(function () { return []; })
     });
     card.appendChild(el('h4', { text: 'Step by step, month by month (the big number is ' + curText + ')' }));
     var grid = el('div', { class: 'steps' });
@@ -455,7 +461,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     return det;
   }
   var cardMap = [];
-  ['group', 'oneone'].forEach(function (p) {
+  ['group', 'oneone', 'tarot'].forEach(function (p) {
     var host = document.getElementById('cards-' + p);
     order[p].forEach(function (f) { var c = buildCard(f); host.appendChild(c); cardMap.push({ el: c, plat: f.platform }); });
   });
@@ -468,8 +474,8 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     b.addEventListener('click', function () {
       state = name;
       Array.prototype.forEach.call(pills.children, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-      cardMap.forEach(function (c) { c.el.hidden = !(state === 'All' || c.plat === state); });
-      rows.forEach(function (r) { if (r.plat) r.tr.hidden = !(state === 'All' || r.plat === state); });
+      cardMap.forEach(function (c) { c.el.hidden = !(state === 'All' || c.plat === state || c.plat === 'All'); });
+      rows.forEach(function (r) { if (r.plat) r.tr.hidden = !(state === 'All' || r.plat === state || r.plat === 'All'); });
     });
     pills.appendChild(b);
   });
