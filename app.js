@@ -52,21 +52,28 @@
   // two-proportion z between the two months; a change also has to be at least 5% in relative terms to count
   function change(step) {
     var a = step.months[prevI], b = step.months[curI];
-    if (!a[1] || !b[1] || a[1] < 30 || b[1] < 30) return { p: ratio(a), l: ratio(b), diff: null, dir: 'flat', z: 0 };
+    if (!a[1] || !b[1] || a[1] < 30 || b[1] < 30) return { p: ratio(a), l: ratio(b), diff: null, dir: 'few', z: 0 };
     var p1 = a[0] / a[1], p2 = b[0] / b[1], pp = (a[0] + b[0]) / (a[1] + b[1]);
     var se = Math.sqrt(pp * (1 - pp) * (1 / a[1] + 1 / b[1]));
     var z = se ? (p2 - p1) / se : 0;
     var real = Math.abs(z) >= 1.96 && p1 > 0 && Math.abs(p2 - p1) / p1 >= 0.05;
-    return { p: p1, l: p2, diff: p2 - p1, z: z, dir: real ? (z > 0 ? 'up' : 'down') : 'flat' };
+    var moved = p1 > 0 && Math.abs(p2 - p1) / p1 >= 0.05;
+    var dir = real ? (z > 0 ? 'up' : 'down') : moved ? (p2 > p1 ? 'lean-up' : 'lean-down') : 'flat';
+    return { p: p1, l: p2, diff: p2 - p1, z: z, dir: dir };
   }
   function chip(ch) {
-    var icon = ch.dir === 'up' ? '▲' : ch.dir === 'down' ? '▼' : '–';
-    var word = ch.dir === 'up' ? 'Improved' : ch.dir === 'down' ? 'Declined' : 'No clear change';
+    var icons = { up: '\u25B2', down: '\u25BC', 'lean-up': '\u25B2', 'lean-down': '\u25BC', flat: '\u2013', few: '?' };
     var ad = ch.diff == null ? 0 : Math.abs(ch.diff * 100);
-    var pp = ch.diff == null ? '' : ' ' + (ch.diff >= 0 ? '+' : '−') + ad.toFixed(ad < 1 ? 2 : 1) + ' pts';
-    return el('span', { class: 'chip ' + ch.dir, title: prevName + ' ' + pct(ch.p) + ' \u2192 ' + curText + ' ' + pct(ch.l) }, [
-      el('span', { class: 'ico', 'aria-hidden': 'true', text: icon }),
-      el('span', { text: word + (ch.dir === 'flat' ? '' : pp) })
+    var pp = ch.diff == null ? '' : (ch.diff >= 0 ? '+' : '\u2212') + ad.toFixed(ad < 1 ? 2 : 1) + ' pts';
+    var text = {
+      up: 'Improved ' + pp, down: 'Declined ' + pp,
+      'lean-up': 'Up ' + pp + ', not yet significant', 'lean-down': 'Down ' + pp + ', not yet significant',
+      flat: 'No clear change (' + pp + ')', few: 'Too few people to tell'
+    }[ch.dir];
+    var tip = ch.dir === 'few' ? 'Fewer than 30 people in one of the two months' : prevName + ' ' + pct(ch.p) + ' \u2192 ' + curText + ' ' + pct(ch.l);
+    return el('span', { class: 'chip ' + ch.dir, title: tip }, [
+      el('span', { class: 'ico', 'aria-hidden': 'true', text: icons[ch.dir] }),
+      el('span', { text: text })
     ]);
   }
   function niceMax(v) {
