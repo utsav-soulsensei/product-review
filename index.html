@@ -34,7 +34,7 @@
 
   <section id="overview">
     <h2>Overview</h2>
-    <p class="lede">Overall conversion means the share of people who viewed a session page and went on to buy, in a single visit. The chip compares the last 28 days with the 28 days before, and the small line shows the shape of the monthly trend (each row has its own scale).</p>
+    <p class="lede" id="ov-lede"></p>
     <p class="note" id="commentary-note"></p>
     <div class="callouts">
       <div class="callout good"><h3><span class="ico" aria-hidden="true">&#9650;</span> What is working</h3><ul id="c-working"></ul></div>
@@ -45,10 +45,10 @@
       <table class="score" id="scoreboard">
         <thead><tr>
           <th scope="col">Funnel</th>
-          <th scope="col" class="num">Overall conversion, last 28 days</th>
-          <th scope="col">Change vs previous 28 days</th>
+          <th scope="col" class="num" id="th-rate"></th>
+          <th scope="col" id="th-change"></th>
           <th scope="col">Month by month</th>
-          <th scope="col" class="num">People entering, last 28 days</th>
+          <th scope="col" class="num" id="th-ent"></th>
         </tr></thead>
         <tbody></tbody>
       </table>

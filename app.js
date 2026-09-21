@@ -42,21 +42,29 @@
     var p = iso.split('-');
     return parseInt(p[2], 10) + ' ' + MN[p[1]];
   }
-  // two-proportion z: previous 28d vs last 28d
+  // Current month vs the month before. Early in a month (fewer than 10 days of data) compare the last two complete months instead.
+  var FULL = { '01': 'January', '02': 'February', '03': 'March', '04': 'April', '05': 'May', '06': 'June', '07': 'July', '08': 'August', '09': 'September', '10': 'October', '11': 'November', '12': 'December' };
+  var NM = D.months.length, dayNow = parseInt(D.through.slice(8, 10), 10);
+  var curI = dayNow >= 10 ? NM - 1 : NM - 2, prevI = curI - 1;
+  var curName = FULL[D.months[curI].slice(5)], prevName = FULL[D.months[prevI].slice(5)];
+  var curPartial = curI === NM - 1;
+  var curText = curPartial ? curName + ' so far' : curName;
+  // two-proportion z between the two months; a change also has to be at least 5% in relative terms to count
   function change(step) {
-    var a = step.p28, b = step.l28;
+    var a = step.months[prevI], b = step.months[curI];
     if (!a[1] || !b[1] || a[1] < 30 || b[1] < 30) return { p: ratio(a), l: ratio(b), diff: null, dir: 'flat', z: 0 };
     var p1 = a[0] / a[1], p2 = b[0] / b[1], pp = (a[0] + b[0]) / (a[1] + b[1]);
     var se = Math.sqrt(pp * (1 - pp) * (1 / a[1] + 1 / b[1]));
     var z = se ? (p2 - p1) / se : 0;
-    return { p: p1, l: p2, diff: p2 - p1, z: z, dir: Math.abs(z) >= 1.96 ? (z > 0 ? 'up' : 'down') : 'flat' };
+    var real = Math.abs(z) >= 1.96 && p1 > 0 && Math.abs(p2 - p1) / p1 >= 0.05;
+    return { p: p1, l: p2, diff: p2 - p1, z: z, dir: real ? (z > 0 ? 'up' : 'down') : 'flat' };
   }
   function chip(ch) {
     var icon = ch.dir === 'up' ? '▲' : ch.dir === 'down' ? '▼' : '–';
     var word = ch.dir === 'up' ? 'Improved' : ch.dir === 'down' ? 'Declined' : 'No clear change';
     var ad = ch.diff == null ? 0 : Math.abs(ch.diff * 100);
     var pp = ch.diff == null ? '' : ' ' + (ch.diff >= 0 ? '+' : '−') + ad.toFixed(ad < 1 ? 2 : 1) + ' pts';
-    return el('span', { class: 'chip ' + ch.dir }, [
+    return el('span', { class: 'chip ' + ch.dir, title: prevName + ' ' + pct(ch.p) + ' \u2192 ' + curText + ' ' + pct(ch.l) }, [
       el('span', { class: 'ico', 'aria-hidden': 'true', text: icon }),
       el('span', { text: word + (ch.dir === 'flat' ? '' : pp) })
     ]);
@@ -227,6 +235,10 @@
   document.getElementById('subtitle').textContent = C.subtitle;
 document.getElementById('commentary-note').textContent = 'The written commentary (the three boxes and the takeaway on each card) was written on ' + C.commentaryAsOf + ' and does not update by itself. The numbers, charts and table refresh every week.';
   document.getElementById('asof').textContent = 'Data through ' + dateNice(D.through) + ' ' + D.through.slice(0, 4) + ' · ' + partialNote;
+  document.getElementById('th-rate').textContent = 'Overall conversion, ' + curText;
+  document.getElementById('th-change').textContent = 'Change vs ' + prevName;
+  document.getElementById('th-ent').textContent = 'People entering, ' + curText;
+  document.getElementById('ov-lede').textContent = 'Overall conversion means the share of people who viewed a session page and went on to buy, in a single visit. The chip compares ' + curText + ' with ' + prevName + ' (hover it for both figures), and the small line shows the shape of the monthly trend (each row has its own scale).';
   fill('c-working', C.working); fill('c-not', C.notWorking); fill('c-watch', C.watch); fill('notes-list', C.notes);
 
   function overall(f) { return f.steps[f.steps.length - 1]; }
@@ -251,7 +263,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
         el('td', { class: 'num', text: pct(ch.l) }),
         el('td', null, [chip(ch)]),
         el('td', null, [spark]),
-        el('td', { class: 'num', text: commas(f.entrants.l28) })
+        el('td', { class: 'num', text: commas(f.entrants.months[curI]) })
       ]);
       tbody.appendChild(tr); rows.push({ tr: tr, plat: f.platform, grp: gr });
       lineChart(spark, {
@@ -265,7 +277,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
   // funnel cards
   function buildCard(f) {
     var ov = overall(f), och = change(ov), flags = [];
-    if (f.entrants.l28 < 1000) flags.push('Small audience – read direction only');
+    if (f.entrants.months[prevI] < 1000) flags.push('Small audience – read direction only');
     var head = el('header', null, [el('h3', { text: segName(f) })]);
     var right = el('div', null);
     flags.forEach(function (t) { right.appendChild(el('span', { class: 'tag', text: t })); });
@@ -273,9 +285,9 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     var card = el('article', { class: 'card fcard', id: f.id }, [head]);
     card.appendChild(el('p', { class: 'takeaway', text: C.takeaways[f.id] || '' }));
     card.appendChild(el('div', { class: 'stats' }, [
-      el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'Overall conversion, last 28 days' }), el('div', { class: 'v', text: pct(och.l) })]),
-      el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'vs ' + pct(och.p) + ' in the 28 days before' }), el('div', { class: 'v sm' }, [chip(och)])]),
-      el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'People entering, last 28 days' }), el('div', { class: 'v sm', text: commas(f.entrants.l28) })])
+      el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'Overall conversion, ' + curText }), el('div', { class: 'v', text: pct(och.l) })]),
+      el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'vs ' + pct(och.p) + ' in ' + prevName }), el('div', { class: 'v sm' }, [chip(och)])]),
+      el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'People entering, ' + curText }), el('div', { class: 'v sm', text: commas(f.entrants.months[curI]) })])
     ]));
     var h1 = el('div', { class: 'host' }), h2 = el('div', { class: 'host' });
     card.appendChild(el('div', { class: 'charts' }, [
@@ -295,7 +307,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
       tipTitles: labels.map(function (l, i) { return l + (i === labels.length - 1 ? ' (' + partialText + ')' : ''); }),
       tipSub: f.entrants.months.map(function () { return []; })
     });
-    card.appendChild(el('h4', { text: 'Step by step, month by month' }));
+    card.appendChild(el('h4', { text: 'Step by step, month by month (the big number is ' + curText + ')' }));
     var grid = el('div', { class: 'steps' });
     f.steps.filter(function (s) { return !s.overall; }).forEach(function (s) {
       var ch = change(s), host = el('div', { class: 'host' });
@@ -319,20 +331,15 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     var tbl = el('table');
     var trh = el('tr', null, [el('th', { scope: 'col', text: 'Step' })]);
     labels.forEach(function (l) { trh.appendChild(el('th', { scope: 'col', text: l })); });
-    trh.appendChild(el('th', { scope: 'col', text: 'Previous 28 days' }));
-    trh.appendChild(el('th', { scope: 'col', text: 'Last 28 days' }));
     tbl.appendChild(el('thead', null, [trh]));
     var tb = el('tbody');
     f.steps.forEach(function (s) {
       var tr = el('tr', null, [el('td', { text: s.label })]);
       s.months.forEach(function (p) { tr.appendChild(el('td', { text: pct(ratio(p), 1) })); });
-      tr.appendChild(el('td', { text: pct(ratio(s.p28), 1) }));
-      tr.appendChild(el('td', { text: pct(ratio(s.l28), 1) }));
       tb.appendChild(tr);
     });
     var tre = el('tr', null, [el('td', { text: 'People entering' })]);
     f.entrants.months.forEach(function (v) { tre.appendChild(el('td', { text: commas(v) })); });
-    tre.appendChild(el('td', { text: commas(f.entrants.p28) })); tre.appendChild(el('td', { text: commas(f.entrants.l28) }));
     tb.appendChild(tre);
     tbl.appendChild(tb);
     det.appendChild(el('div', { class: 'tbl' }, [tbl]));
