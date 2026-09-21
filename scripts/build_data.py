@@ -24,19 +24,19 @@ REPORTS = [
     ('B iOS LO',      'oneone', 'iOS',     'guest',    '92887348'),
     ('B Android LO',  'oneone', 'Android', 'guest',    '92887058'),
     ('Tarot LP',      'tarot',  'All',     'all',      '92917365'),
+    ('Astro LP',      'astro',  'All',     'all',      '92917667'),
 ]
 
 # Reports whose steps are not a simple PV -> ... chain. For the Tarot listing report the overall metric is
 # 'Absolute CR': its primary series is a COUNT and its secondary series is the rate (the reverse of the others).
 # Step D starts from the people who made a leader query (step C's converted count).
-CUSTOM = {
-    'Tarot LP': {
-        'entry': 'A. Listing PV',
-        'steps': ['B. LP to Card Click', 'C. LP to LUQ', 'D. LUQ to RS', 'F. Absolute CR'],
-        'swap': {'F. Absolute CR'},
-        'den_from': {'D. LUQ to RS': 'C. LP to LUQ'},
-    },
+_LISTING = {
+    'entry': 'A. Listing PV',
+    'steps': ['B. LP to Card Click', 'C. LP to LUQ', 'D. LUQ to RS', 'F. Absolute CR'],
+    'swap': {'F. Absolute CR'},
+    'den_from': {'D. LUQ to RS': 'C. LP to LUQ'},
 }
+CUSTOM = {'Tarot LP': _LISTING, 'Astro LP': _LISTING}
 
 def rc(product):
     return 'Register click' if product == 'group' else 'Confirm slot click'
@@ -45,7 +45,7 @@ def label(product, name):
     n = re.sub(r'^[A-Z]\. ', '', name)
     n = re.sub(r'\s*\((Guest|Logged in|Logged In)\)', '', n).strip()
     r = rc(product)
-    if product == 'tarot':
+    if product in ('tarot', 'astro'):
         tarot = {'LP to Card Click': 'Listing page → Card click', 'LP to LUQ': 'Listing page → Leader query',
                  'LUQ to RS': 'Leader query → Purchase', 'Absolute CR': 'Overall: listing page → purchase'}
         if n in tarot:
@@ -77,18 +77,27 @@ def parse(s):
             pass
     raise ValueError(s)
 
-def fetch(pid, tok, bid, tries=4):
-    for i in range(tries):
+def fetch(pid, tok, bid, tries=4, max_wait=3000):
+    """GET one saved report. Other errors retry `tries` times; a 429 (60 queries/hour cap) waits, up to max_wait seconds."""
+    waited, last = 0, ''
+    i = 0
+    while True:
         try:
             r = requests.get(f'{API}/query/insights', params={'project_id': pid, 'bookmark_id': bid},
                              headers={'Authorization': f'Basic {tok}'}, timeout=240)
             if r.status_code == 200:
                 return r.json()
-            print('report', bid, 'HTTP', r.status_code, r.text[:120])
+            last = f'HTTP {r.status_code} {r.text[:120]}'
+            if r.status_code == 429 and waited < max_wait:
+                print('report', bid, 'rate limited, waiting 150s', flush=True)
+                time.sleep(150); waited += 150
+                continue
         except requests.exceptions.RequestException as e:
-            print('report', bid, 'error', type(e).__name__)
-        time.sleep(10 * (i + 1))
-    raise RuntimeError(f'could not fetch bookmark {bid}')
+            last = type(e).__name__
+        i += 1
+        if i >= tries:
+            raise RuntimeError(f'could not fetch bookmark {bid}: {last}')
+        time.sleep(10 * i)
 
 def fetch_all(pid, tok):
     return {rid: fetch(pid, tok, bid) for rid, _, _, _, bid in REPORTS}

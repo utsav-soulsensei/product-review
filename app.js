@@ -83,7 +83,7 @@
     var n = f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
     return n * e;
   }
-  function segName(f) { if (f.product === 'tarot') return 'Tarot listing pages'; return f.platform + ' · ' + (f.segment === 'guest' ? 'Logged-out visitors' : 'Logged-in visitors'); }
+  function segName(f) { if (f.product === 'tarot') return 'Tarot listing pages'; if (f.product === 'astro') return 'Astro listing pages'; return f.platform + ' · ' + (f.segment === 'guest' ? 'Logged-out visitors' : 'Logged-in visitors'); }
 
   // ---------- tooltip ----------
   var tt = document.getElementById('tt');
@@ -298,14 +298,14 @@ document.getElementById('commentary-note').textContent = 'The written commentary
 
   // scoreboard
   var tbody = document.querySelector('#scoreboard tbody');
-  var order = { group: [], oneone: [], tarot: [] };
+  var order = { group: [], oneone: [], tarot: [], astro: [] };
   D.funnels.forEach(function (f) { order[f.product].push(f); });
   var platRank = { Web: 0, iOS: 1, Android: 2, All: 3 };
   Object.keys(order).forEach(function (k) {
     order[k].sort(function (a, b) { return platRank[a.platform] - platRank[b.platform] || (a.segment === 'loggedin' ? -1 : 1); });
   });
   var rows = [];
-  [['group', 'Group purchase'], ['oneone', '1:1 booking'], ['tarot', 'Tarot listing pages']].forEach(function (pair) {
+  [['group', 'Group purchase'], ['oneone', '1:1 booking'], ['tarot', 'Tarot listing pages'], ['astro', 'Astro listing pages']].forEach(function (pair) {
     var gr = el('tr', { class: 'group' }, [el('td', { colspan: '5', text: pair[1] })]);
     tbody.appendChild(gr); rows.push({ tr: gr, plat: null });
     order[pair[0]].forEach(function (f) {
@@ -330,7 +330,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
   // funnel cards
   function buildCard(f) {
     var ov = overall(f), och = change(ov), flags = [];
-    if (f.entrants.months[prevI] < 1000) flags.push('Small audience – read direction only');
+    if (f.entrants.months[prevI] < 1000 || ov.months[prevI][0] < 30) flags.push('Small audience – read direction only');
     var head = el('header', null, [el('h3', { text: segName(f) })]);
     var right = el('div', null);
     flags.forEach(function (t) { right.appendChild(el('span', { class: 'tag', text: t })); });
@@ -342,7 +342,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
       el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'vs ' + pct(och.p) + ' in ' + prevName }), el('div', { class: 'v sm' }, [chip(och)])]),
       el('div', { class: 'stat' }, [el('div', { class: 'k', text: 'People entering, ' + curText }), el('div', { class: 'v sm', text: commas(f.entrants.months[curI]) })])
     ]));
-    var isTarot = f.product === 'tarot';
+    var isTarot = f.product === 'tarot' || f.product === 'astro';
     var rightVals = isTarot ? ov.months.map(function (p) { return p[0]; }) : f.entrants.months;
     var h1 = el('div', { class: 'host' }), h2 = el('div', { class: 'host' });
     card.appendChild(el('div', { class: 'charts' }, [
@@ -461,7 +461,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     return det;
   }
   var cardMap = [];
-  ['group', 'oneone', 'tarot'].forEach(function (p) {
+  ['group', 'oneone', 'tarot', 'astro'].forEach(function (p) {
     var host = document.getElementById('cards-' + p);
     order[p].forEach(function (f) { var c = buildCard(f); host.appendChild(c); cardMap.push({ el: c, plat: f.platform }); });
   });
