@@ -144,7 +144,7 @@
       sv('path', { d: 'M' + pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' L'), class: 'l-line' }, svg);
       var cross = sv('line', { x1: 0, x2: 0, y1: m.t, y2: m.t + ih, class: 'l-cross', visibility: 'hidden' }, svg);
       pts.forEach(function (p) {
-        var last = p[2] === n - 1 && o.partialLast;
+        var last = (p[2] === n - 1 && o.partialLast) || (o.hollow && o.hollow.indexOf(p[2]) >= 0);
         if (mini && p[2] !== n - 1) return;
         sv('circle', { cx: p[0], cy: p[1], r: mini ? 3.5 : 4.5, class: 'l-dot' + (last ? ' hollow' : '') }, svg);
       });
@@ -160,7 +160,8 @@
         }
       }
       // x labels
-      var xl = spark ? [] : mini ? [0, n - 1] : o.labels.map(function (_, i) { return i; });
+      var stride = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(iw / 58))));
+      var xl = spark ? [] : mini ? [0, n - 1] : o.labels.map(function (_, i) { return i; }).filter(function (i) { return (n - 1 - i) % stride === 0; });
       xl.forEach(function (i) {
         var tx = sv('text', { x: X(i), y: H - (mini ? 3 : 7), 'text-anchor': 'middle' }, svg);
         tx.textContent = o.labels[i];
@@ -208,27 +209,31 @@
     var draw = function () {
       var W = host.clientWidth; if (!W) return;
       host.textContent = '';
-      var H = o.height, m = { l: 42, r: 10, t: 20, b: 26 };
+      var H = o.height, m = { l: 42, r: 24, t: o.noLabels ? 8 : 20, b: 26 }, TK = o.ticks || 4;
       var iw = W - m.l - m.r, ih = H - m.t - m.b, n = o.vals.length;
       var top = niceMax(Math.max.apply(null, o.vals) * 1.1);
       var Y = function (v) { return m.t + ih - (v / top) * ih; };
       var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': o.aria });
-      for (var t = 0; t <= 4; t++) {
-        var tv = top * t / 4, ty = Y(tv);
+      for (var t = 0; t <= TK; t++) {
+        var tv = top * t / TK, ty = Y(tv);
         sv('line', { x1: m.l, x2: W - m.r, y1: ty, y2: ty, class: t === 0 ? 'l-axis' : 'l-grid' }, svg);
         var tl = sv('text', { x: m.l - 8, y: ty + 4, 'text-anchor': 'end' }, svg);
         tl.textContent = compact(tv);
       }
-      var band = iw / n, bw = Math.min(24, band * 0.5);
+      var band = iw / n, bw = Math.min(24, band * (o.noLabels ? 0.6 : 0.5)), bstride = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(iw / 58))));
       o.vals.forEach(function (v, i) {
         var x = m.l + i * band + (band - bw) / 2, y = Y(v), h = Math.max(1, m.t + ih - y), r = Math.min(4, bw / 2, h);
         var d = 'M' + x + ',' + (m.t + ih) + ' V' + (y + r) + ' Q' + x + ',' + y + ' ' + (x + r) + ',' + y +
           ' H' + (x + bw - r) + ' Q' + (x + bw) + ',' + y + ' ' + (x + bw) + ',' + (y + r) + ' V' + (m.t + ih) + ' Z';
-        var bar = sv('path', { d: d, class: 'b-bar' + (i === n - 1 && o.partialLast ? ' part' : '') }, svg);
-        var lab = sv('text', { x: x + bw / 2, y: y - 6, 'text-anchor': 'middle', class: 'lab' }, svg);
-        lab.textContent = compact(v);
-        var xl = sv('text', { x: x + bw / 2, y: H - 7, 'text-anchor': 'middle' }, svg);
-        xl.textContent = o.labels[i];
+        var bar = sv('path', { d: d, class: 'b-bar' + (((i === n - 1 && o.partialLast) || (o.hollow && o.hollow.indexOf(i) >= 0)) ? ' part' : '') }, svg);
+        if (!o.noLabels) {
+          var lab = sv('text', { x: x + bw / 2, y: y - 6, 'text-anchor': 'middle', class: 'lab' }, svg);
+          lab.textContent = compact(v);
+        }
+        if ((n - 1 - i) % bstride === 0) {
+          var xl = sv('text', { x: x + bw / 2, y: H - 7, 'text-anchor': 'middle' }, svg);
+          xl.textContent = o.labels[i];
+        }
         var hit = sv('rect', { x: m.l + i * band, y: 0, width: band, height: H, fill: 'transparent' }, svg);
         hit.addEventListener('pointermove', function (e) {
           bar.classList.add('hover');
@@ -246,21 +251,23 @@
   }) : null;
   function watch(host, draw) {
     host._draw = draw;
+    if (host.clientWidth) draw();
     if (ro) ro.observe(host); else { draw(); window.addEventListener('resize', draw); }
   }
 
-  // ---------- web releases (hidden until the toggle is switched on) ----------
+  // ---------- web releases (shown only inside the weekly deep dive) ----------
   var REL = (window.DASH_RELEASES || []);
   function releasesFor(f) {
     if (f.platform !== 'Web') return [];
     return REL.filter(function (r) { return f.product === 'group' || r.page !== 'Course'; });
   }
-  function relMarks(f) {
+  function weekMarks(f) {
+    var starts = D.weeks.map(function (w) { return Date.parse(w + 'T00:00:00Z'); });
     return releasesFor(f).map(function (r) {
-      var ym = r.date.slice(0, 7), mi = D.months.indexOf(ym);
-      if (mi < 0) return null;
-      var day = parseInt(r.date.slice(8, 10), 10), dim = new Date(parseInt(r.date.slice(0, 4), 10), parseInt(r.date.slice(5, 7), 10), 0).getDate();
-      return { mi: mi, frac: (day - 0.5) / dim, pr: r.pr, page: r.page, what: r.what, dateText: dateNice(r.date) };
+      var t = Date.parse(r.date + 'T00:00:00Z'), wi = -1;
+      for (var i = 0; i < starts.length; i++) if (starts[i] <= t && t < starts[i] + 7 * 86400000) wi = i;
+      if (wi < 0) return null;
+      return { mi: wi, frac: ((t - starts[wi]) / 86400000 + 0.5) / 7, pr: r.pr, page: r.page, what: r.what, dateText: dateNice(r.date) };
     }).filter(Boolean);
   }
 
@@ -333,11 +340,11 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     ]));
     var h1 = el('div', { class: 'host' }), h2 = el('div', { class: 'host' });
     card.appendChild(el('div', { class: 'charts' }, [
-      el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s' }, [document.createTextNode('Share of people who entered and then purchased, in one visit'), el('span', { class: 'rel-only', text: ' \u00B7 \u25C6 = a web release (hover for details)' })]), h1]),
+      el('div', null, [el('p', { class: 'chart-t', text: 'Overall conversion by month' }), el('p', { class: 'chart-s', text: 'Share of people who entered and then purchased, in one visit' }), h1]),
       el('div', null, [el('p', { class: 'chart-t', text: 'People entering the funnel' }), el('p', { class: 'chart-s', text: 'Per month (' + lastMonthName + ' is part-month)' }), h2])
     ]));
     lineChart(h1, {
-      vals: ov.months.map(ratio), labels: labels, height: 210, partialLast: true, marks: relMarks(f),
+      vals: ov.months.map(ratio), labels: labels, height: 210, partialLast: true,
       aria: 'Overall conversion by month for ' + segName(f),
       tips: ov.months.map(function (p, i) {
         return { title: labels[i] + (i === labels.length - 1 ? ' (' + partialText + ')' : ''), value: pct(ratio(p)), sub: [commas(p[0]) + ' purchases of ' + commas(p[1]) + ' entrants'] };
@@ -386,19 +393,66 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     tbl.appendChild(tb);
     det.appendChild(el('div', { class: 'tbl' }, [tbl]));
     card.appendChild(det);
-    var rl = releasesFor(f);
-    if (rl.length) {
-      var rdet = el('details', { class: 'rel-only' }, [el('summary', { text: 'Web releases on the course page and cart (' + rl.length + ')' })]);
-      var rt = el('table'), rb = el('tbody');
-      rt.appendChild(el('thead', null, [el('tr', null, ['Date', 'Page', 'What shipped'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
-      rl.forEach(function (r) {
-        rb.appendChild(el('tr', null, [el('td', { text: dateNice(r.date) }), el('td', { text: r.page }), el('td', { text: r.what + ' (PR #' + r.pr + ')' })]));
-      });
-      rt.appendChild(rb);
-      rdet.appendChild(el('div', { class: 'tbl' }, [rt]));
-      card.appendChild(rdet);
-    }
+    if (D.weeks) card.appendChild(buildDeep(f));
     return card;
+  }
+
+  // weekly deep dive: opened on demand, rendered the first time it is opened
+  function buildDeep(f) {
+    var rel = releasesFor(f);
+    var det = el('details', { class: 'deep' }, [el('summary', { text: 'Weekly deep dive' + (rel.length ? ' (with web releases)' : '') })]);
+    var built = false;
+    det.addEventListener('toggle', function () { if (det.open && !built) { built = true; render(); } });
+    function render() {
+      var wl = D.weeks.map(dateNice), hollow = [];
+      D.weekDays.forEach(function (n, i) { if (n < 7) hollow.push(i); });
+      var order = f.steps.map(function (s, i) { return i; }).sort(function (x, y) { return (f.steps[y].overall ? 1 : 0) - (f.steps[x].overall ? 1 : 0) || x - y; });
+      var sel = el('select', { 'aria-label': 'Step to chart' });
+      order.forEach(function (i) { sel.appendChild(el('option', { value: String(i), text: f.steps[i].label })); });
+      var box = el('input', { type: 'checkbox' });
+      box.checked = true;
+      var ctl = el('div', { class: 'deep-ctl' }, [el('label', { class: 'flabel' }, [document.createTextNode('Step '), sel])]);
+      if (rel.length) ctl.appendChild(el('label', { class: 'toggle' }, [box, document.createTextNode('Show web releases')]));
+      var body = el('div', { class: 'deep-body' });
+      det.appendChild(ctl); det.appendChild(body);
+      function paint() {
+        var s = f.steps[parseInt(sel.value, 10)], showRel = rel.length && box.checked;
+        body.textContent = '';
+        var hL = el('div', { class: 'host' }), hV = el('div', { class: 'host' });
+        body.appendChild(el('p', { class: 'chart-t', text: s.label + ', week by week' }));
+        body.appendChild(el('p', { class: 'chart-s', text: 'Each dot is one week starting Monday; hollow means a part week.' + (showRel ? ' \u25C6 = a web release, hover for details.' : '') }));
+        body.appendChild(hL);
+        body.appendChild(el('p', { class: 'chart-t', text: 'People entering the funnel, week by week' }));
+        body.appendChild(hV);
+        lineChart(hL, {
+          vals: s.weeks.map(ratio), labels: wl, height: 250, hollow: hollow, marks: showRel ? weekMarks(f) : null, area: false,
+          aria: s.label + ' by week for ' + segName(f),
+          tips: s.weeks.map(function (p, i) {
+            return { title: 'Week of ' + wl[i] + (hollow.indexOf(i) >= 0 ? ' (part week)' : ''), value: pct(ratio(p)), sub: [commas(p[0]) + ' of ' + commas(p[1])] };
+          })
+        });
+        barChart(hV, {
+          vals: f.entrants.weeks, labels: wl, height: 110, hollow: hollow, noLabels: true, ticks: 2,
+          aria: 'People entering the funnel by week for ' + segName(f),
+          tipTitles: wl.map(function (l, i) { return 'Week of ' + l + (hollow.indexOf(i) >= 0 ? ' (part week)' : ''); }),
+          tipSub: wl.map(function () { return []; })
+        });
+        if (showRel) {
+          var rt = el('table'), rb = el('tbody');
+          rt.appendChild(el('thead', null, [el('tr', null, ['Date', 'Page', 'What shipped'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+          rel.forEach(function (r) {
+            rb.appendChild(el('tr', null, [el('td', { text: dateNice(r.date) }), el('td', { text: r.page }), el('td', { text: r.what + ' (PR #' + r.pr + ')' })]));
+          });
+          rt.appendChild(rb);
+          body.appendChild(el('p', { class: 'chart-t', text: 'Web releases on the course page and cart' }));
+          body.appendChild(el('div', { class: 'tbl left' }, [rt]));
+        }
+      }
+      sel.addEventListener('change', paint);
+      box.addEventListener('change', paint);
+      paint();
+    }
+    return det;
   }
   var cardMap = [];
   ['group', 'oneone'].forEach(function (p) {
@@ -419,10 +473,6 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     });
     pills.appendChild(b);
   });
-
-  // release markers toggle (off by default)
-  var relBox = document.getElementById('show-rel');
-  relBox.addEventListener('change', function () { document.body.classList.toggle('show-rel', relBox.checked); });
 
   // theme
   var root = document.documentElement;

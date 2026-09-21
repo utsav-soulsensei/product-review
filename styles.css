@@ -139,9 +139,14 @@ svg text.lab { fill: var(--ink); font-weight: 600; }
 
 .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); margin-left: 12px; cursor: pointer; }
 .toggle input { width: 16px; height: 16px; accent-color: var(--series); cursor: pointer; }
-svg .rel, .rel-only { display: none; }
-body.show-rel svg .rel { display: inline; }
-body.show-rel .rel-only { display: revert; }
-body.show-rel details.rel-only { display: block; }
 .l-rel { fill: var(--ink-2); stroke: var(--surface); stroke-width: 2; }
 @media (max-width: 860px) { .filters { flex-wrap: wrap; } .toggle { margin-left: 0; } }
+
+details.deep { margin-top: 14px; border-top: 1px solid var(--grid); padding-top: 12px; }
+details.deep > summary { font-weight: 600; color: var(--ink); }
+.deep-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin: 12px 0 6px; }
+.deep-ctl select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; max-width: 100%; }
+.deep-ctl .toggle { margin-left: 0; }
+.deep-body .chart-t { margin-top: 12px; }
+
+.tbl.left th, .tbl.left td { text-align: left; white-space: normal; }

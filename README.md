@@ -2,6 +2,8 @@
 
 A static dashboard showing how every purchase funnel (Group purchase and 1:1 booking, on Web, iOS and Android) has moved month by month since May 2026.
 
+Each funnel card has a collapsed **Weekly deep dive**: pick any step, see it week by week with the number of people entering, and on Web cards switch on the release markers.
+
 ## View it
 
 Open `index.html` in a browser (no build step, no server needed), or serve the folder with any static host.
@@ -13,7 +15,7 @@ Open `index.html` in a browser (no build step, no server needed), or serve the f
 | `index.html`, `styles.css`, `app.js` | The page, styling and charts (plain HTML/CSS/JS, no dependencies) |
 | `data.js` | The numbers. Generated, do not edit by hand |
 | `content.js` | The written takeaways and notes. Edit this by hand |
-| `releases.js` | Web course-page and cart releases shown when "Show web releases" is ticked. Edit this by hand |
+| `releases.js` | Web course-page and cart releases shown in each Web card's "Weekly deep dive". Edit this by hand |
 | `scripts/build_data.py` | Rebuilds `data.js` from the saved Mixpanel reports |
 
 ## Refreshing the numbers

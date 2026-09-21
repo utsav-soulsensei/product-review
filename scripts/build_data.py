@@ -89,11 +89,20 @@ def build(raws):
         months.append(f'{y}-{m_:02d}')
         y, m_ = (y + 1, 1) if m_ == 12 else (y, m_ + 1)
 
+    def wk(d):
+        return (d - dt.timedelta(days=d.weekday())).isoformat()
+
     def buckets(d):
-        b = [d.strftime('%Y-%m'), 'ALL']
+        b = [d.strftime('%Y-%m'), 'ALL', 'W:' + wk(d)]
         if l28[0] <= d <= l28[1]: b.append('L28')
         if p28[0] <= d <= p28[1]: b.append('P28')
         return b
+
+    week_starts, w = [], first - dt.timedelta(days=first.weekday())
+    while w <= end:
+        week_starts.append(w.isoformat())
+        w += dt.timedelta(days=7)
+    week_days = [sum(1 for k in range(7) if first <= dt.date.fromisoformat(ws) + dt.timedelta(days=k) <= end) for ws in week_starts]
 
     funnels = []
     for rid, product, platform, seg_default, _ in REPORTS:
@@ -132,19 +141,20 @@ def build(raws):
                     'label': label(product, s),
                     'overall': i == n - 1,
                     'months': [agg[s].get(mo, [0, 0]) for mo in months],
+                    'weeks': [agg[s].get('W:' + ws, [0, 0]) for ws in week_starts],
                     'l28': agg[s].get('L28', [0, 0]), 'p28': agg[s].get('P28', [0, 0]),
                     'all': agg[s].get('ALL', [0, 0]),
                 })
             fid = f"{product}-{platform.lower()}-{seg}"
             funnels.append({
                 'id': fid, 'product': product, 'platform': platform, 'segment': seg,
-                'entrants': {'months': [ent.get(mo, 0) for mo in months], 'l28': ent.get('L28', 0),
+                'entrants': {'months': [ent.get(mo, 0) for mo in months], 'weeks': [ent.get('W:' + ws, 0) for ws in week_starts], 'l28': ent.get('L28', 0),
                              'p28': ent.get('P28', 0), 'all': ent.get('ALL', 0)},
                 'steps': out_steps,
             })
 
     fmt = lambda d: d.isoformat()
-    data = {'generated': dt.date.today().isoformat(), 'through': fmt(end), 'months': months,
+    data = {'generated': dt.date.today().isoformat(), 'through': fmt(end), 'months': months, 'weeks': week_starts, 'weekDays': week_days,
             'l28': [fmt(l28[0]), fmt(l28[1])], 'p28': [fmt(p28[0]), fmt(p28[1])], 'funnels': funnels}
     return data
 
