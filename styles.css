@@ -150,3 +150,16 @@ details.deep > summary { font-weight: 600; color: var(--ink); }
 .deep-body .chart-t { margin-top: 12px; }
 
 .tbl.left th, .tbl.left td { text-align: left; white-space: normal; }
+
+details.ov { margin: 0; }
+details.ov > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 14px; border-radius: 10px; }
+details.ov > summary::-webkit-details-marker { display: none; }
+details.ov > summary h2 { margin: 44px 0 6px; }
+details.ov > summary h2::before { content: '\25B8'; display: inline-block; width: 22px; color: var(--muted); }
+details.ov[open] > summary h2::before { content: '\25BE'; }
+.ov-hint { font-size: 13px; color: var(--muted); }
+.ov-open { display: none; }
+details.ov[open] .ov-open { display: inline; }
+details.ov[open] .ov-closed { display: none; }
+details.ov > summary:hover h2 { text-decoration: underline; }
+details.ov > summary h2 { color: var(--ink); }

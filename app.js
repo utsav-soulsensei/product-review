@@ -483,4 +483,11 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     root.setAttribute('data-theme', next);
     try { localStorage.setItem('pr-theme', next); } catch (e) {}
   });
+
+  // the Overview starts collapsed; the nav link and a #overview address open it
+  var ovDetails = document.getElementById('ov-details');
+  Array.prototype.forEach.call(document.querySelectorAll('a[href="#overview"]'), function (lnk) {
+    lnk.addEventListener('click', function () { ovDetails.open = true; });
+  });
+  if (location.hash === '#overview') ovDetails.open = true;
 })();
