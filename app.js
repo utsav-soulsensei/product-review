@@ -193,7 +193,7 @@
           target.addEventListener('pointermove', function (e) {
             var it = cl.items, first = it[0];
             var title = it.length > 1 ? 'Web releases' : 'Web release \u00B7 ' + first.dateText;
-            var value = it.length > 1 ? it.length + ' releases' : 'PR #' + first.pr + ' \u00B7 ' + first.page;
+            var value = it.length > 1 ? it.length + ' releases' : (first.tag || first.dateText);
             var sub = it.length > 1 ? it.map(function (r) { return r.dateText + ' \u2013 ' + r.what; }) : [first.what];
             showTip(e, title, value, sub, false);
           });
@@ -256,20 +256,24 @@
   }
 
   // ---------- web releases (shown only inside the weekly deep dive) ----------
-  var REL = (window.DASH_RELEASES || []);
+  var REL = (window.DASH_RELEASES || []).map(function (r) { return { date: r.date, what: r.what, tag: r.pr ? 'PR #' + r.pr : null, page: r.page }; })
+    .concat((window.DASH_RELEASES_LOG || []).map(function (r) { return { date: r.date, what: r.what, tag: r.tag, page: null }; }))
+    .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
   function releasesFor(f) {
     if (f.platform !== 'Web') return [];
     return REL.filter(function (r) { return f.product === 'group' || r.page !== 'Course'; });
   }
-  function weekMarks(f) {
-    var starts = D.weeks.map(function (w) { return Date.parse(w + 'T00:00:00Z'); });
-    return releasesFor(f).map(function (r) {
-      var t = Date.parse(r.date + 'T00:00:00Z'), wi = -1;
-      for (var i = 0; i < starts.length; i++) if (starts[i] <= t && t < starts[i] + 7 * 86400000) wi = i;
-      if (wi < 0) return null;
-      return { mi: wi, frac: ((t - starts[wi]) / 86400000 + 0.5) / 7, pr: r.pr, page: r.page, what: r.what, dateText: dateNice(r.date) };
-    }).filter(Boolean);
+  var WEEK_STARTS = D.weeks.map(function (w) { return Date.parse(w + 'T00:00:00Z'); });
+  function toWeekMark(r) {
+    var t = Date.parse(r.date + 'T00:00:00Z'), wi = -1;
+    for (var i = 0; i < WEEK_STARTS.length; i++) if (WEEK_STARTS[i] <= t && t < WEEK_STARTS[i] + 7 * 86400000) wi = i;
+    if (wi < 0) return null;
+    return { mi: wi, frac: ((t - WEEK_STARTS[wi]) / 86400000 + 0.5) / 7, tag: r.tag, what: r.what, dateText: dateNice(r.date) };
   }
+  function weekMarks(f) {
+    return releasesFor(f).map(function (r) { return toWeekMark({ date: r.date, what: r.what, tag: r.pr ? 'PR #' + r.pr : null }); }).filter(Boolean);
+  }
+  var ALL_WEEK_MARKS = REL.map(toWeekMark).filter(Boolean);
 
   // ---------- content ----------
   D.funnels.forEach(function (f) {
@@ -466,8 +470,7 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     order[p].forEach(function (f) { var c = buildCard(f); host.appendChild(c); cardMap.push({ el: c, plat: f.platform }); });
   });
 
-  // platform filter
-  var state = 'All';
+  // platform filter  var state = 'All';
   var pills = document.getElementById('platform-pills');
   ['All', 'Web', 'iOS', 'Android'].forEach(function (name) {
     var b = el('button', { class: 'pill', type: 'button', 'aria-pressed': name === 'All' ? 'true' : 'false', text: name });
@@ -479,6 +482,43 @@ document.getElementById('commentary-note').textContent = 'The written commentary
     });
     pills.appendChild(b);
   });
+
+
+  // Web releases & metrics: one cross-funnel chart, every release from both logs
+  function buildWebReleasesPage() {
+    var host = document.getElementById('web-releases'); if (!host) return;
+    var webFunnels = D.funnels.filter(function (f) { return f.platform === 'Web'; });
+    var sel = document.getElementById('wr-metric');
+    webFunnels.forEach(function (f) {
+      var og = el('optgroup', { label: (f.product === 'group' ? 'Group purchase' : '1:1 booking') + ' \u00B7 ' + (f.segment === 'guest' ? 'Logged-out' : 'Logged-in') });
+      f.steps.forEach(function (s, i) { og.appendChild(el('option', { value: f.id + '::' + i, text: s.label })); });
+      sel.appendChild(og);
+    });
+    var chart = document.getElementById('wr-chart');
+    var byId = {}; webFunnels.forEach(function (f) { byId[f.id] = f; });
+    function paint() {
+      var parts = sel.value.split('::'), f = byId[parts[0]], s = f.steps[parseInt(parts[1], 10)];
+      chart.textContent = '';
+      lineChart(chart, {
+        vals: s.weeks.map(ratio), labels: D.weeks.map(dateNice), height: 340, marks: ALL_WEEK_MARKS,
+        aria: s.label + ' by week, ' + segName(f) + ', with every web release marked',
+        tips: s.weeks.map(function (p, i) {
+          return { title: 'Week of ' + dateNice(D.weeks[i]) + (D.weekDays[i] < 7 ? ' (part week)' : ''), value: pct(ratio(p)), sub: [commas(p[0]) + ' of ' + commas(p[1])] };
+        })
+      });
+    }
+    sel.addEventListener('change', paint);
+    paint();
+    var rt = el('table'), rb = el('tbody');
+    rt.appendChild(el('thead', null, [el('tr', null, ['Date', 'Release / tag', 'What shipped'].map(function (h) { return el('th', { scope: 'col', text: h }); }))]));
+    REL.forEach(function (r) {
+      rb.appendChild(el('tr', null, [el('td', { text: dateNice(r.date) }), el('td', { text: r.tag || '\u2013' }), el('td', { text: r.what })]));
+    });
+    rt.appendChild(rb);
+    document.getElementById('wr-all').appendChild(el('div', { class: 'tbl left' }, [rt]));
+    document.getElementById('wr-count').textContent = String(REL.length);
+  }
+  buildWebReleasesPage();
 
   // theme
   var root = document.documentElement;

@@ -24,6 +24,7 @@
     <a href="#oneone">1:1 booking</a>
     <a href="#tarot">Tarot listing pages</a>
     <a href="#astro">Astro listing page</a>
+    <a href="#web-releases">Web releases</a>
     <a href="#notes">How to read this</a>
   </nav>
 </header>
@@ -83,6 +84,23 @@
     <div class="cards" id="cards-astro"></div>
   </section>
 
+  <section id="web-releases">
+    <h2>Web releases</h2>
+    <p class="lede">Every web release from both release logs, mapped against any metric, week by week. Web only.</p>
+    <div class="wr-ctl">
+      <label class="flabel">Metric <select id="wr-metric"></select></label>
+    </div>
+    <div class="card">
+      <p class="chart-t">Selected metric, week by week</p>
+      <p class="chart-s">Each dot is one week starting Monday. ◆ = a release, hover for details (several close together merge into one marker).</p>
+      <div class="host" id="wr-chart"></div>
+    </div>
+    <details class="deep" style="margin-top:14px">
+      <summary>All releases (<span id="wr-count">0</span>)</summary>
+      <div id="wr-all"></div>
+    </details>
+  </section>
+
   <section id="notes">
     <h2>How to read this</h2>
     <ul class="notes" id="notes-list"></ul>
@@ -93,6 +111,7 @@
 <script src="data.js"></script>
 <script src="content.js"></script>
 <script src="releases.js"></script>
+<script src="releases_log.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
